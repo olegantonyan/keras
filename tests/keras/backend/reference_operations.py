@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.signal as signal
+from keras.backend import floatx
 
 
 def normalize_conv(func):
@@ -139,6 +140,18 @@ def pool(x, pool_size, strides, padding, data_format, pool_mode):
 
 pool2d = pool
 pool3d = pool
+
+
+def bias_add(x, y, data_format):
+    if data_format == 'channels_first':
+        if y.ndim > 1:
+            y = np.reshape(y, y.shape[::-1])
+        for _ in range(x.ndim - y.ndim - 1):
+            y = np.expand_dims(y, -1)
+    else:
+        for _ in range(x.ndim - y.ndim - 1):
+            y = np.expand_dims(y, 0)
+    return x + y
 
 
 def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
@@ -329,6 +342,14 @@ def clip(x, min_value, max_value):
     return np.clip(x, min_value, max_value)
 
 
+def concatenate(tensors, axis=-1):
+    return np.concatenate(tensors, axis)
+
+
+def permute_dimensions(x, pattern):
+    return np.transpose(x, pattern)
+
+
 def reshape(x, shape):
     return np.reshape(x, shape)
 
@@ -337,7 +358,64 @@ def repeat_elements(x, rep, axis):
     return np.repeat(x, rep, axis=axis)
 
 
+def repeat(x, n):
+    y = np.expand_dims(x, 1)
+    y = np.repeat(y, n, axis=1)
+    return y
+
+
+def arange(start, stop=None, step=1, dtype='int32'):
+    return np.arange(start, stop, step, dtype)
+
+
+def flatten(x):
+    return np.reshape(x, (-1,))
+
+
+def batch_flatten(x):
+    return np.reshape(x, (x.shape[0], -1))
+
+
 def eval(x):
+    return x
+
+
+def dtype(x):
+    return x.dtype.name
+
+
+def constant(value, dtype=None, shape=None, name=None):
+    if dtype is None:
+        dtype = floatx()
+    if shape is None:
+        shape = ()
+    np_value = value * np.ones(shape)
+    np_value.astype(dtype)
+    return np_value
+
+
+def print_tensor(x, message=''):
+    print(x, message)
+    return x
+
+
+def eye(size, dtype=None, name=None):
+    return np.eye(size, dtype=dtype)
+
+
+def dot(x, y):
+    return np.dot(x, y)
+
+
+def transpose(x):
+    return np.transpose(x)
+
+
+def reverse(x, axes):
+    if isinstance(axes, int):
+        axes = [axes]
+    for a in axes:
+        x = np.flip(x, a)
     return x
 
 
@@ -380,9 +458,41 @@ def minimum(x, y):
     return np.minimum(x, y)
 
 
+def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
+    return (high - low) * np.random.random(shape).astype(dtype) + low
+
+
+def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None):
+    return scale * np.random.randn(*shape).astype(dtype) + mean
+
+
+def resize_images(x, height_factor, width_factor, data_format):
+    if data_format == 'channels_first':
+        x = repeat_elements(x, height_factor, axis=2)
+        x = repeat_elements(x, width_factor, axis=3)
+    elif data_format == 'channels_last':
+        x = repeat_elements(x, height_factor, axis=1)
+        x = repeat_elements(x, width_factor, axis=2)
+    return x
+
+
+def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
+    if data_format == 'channels_first':
+        x = repeat_elements(x, depth_factor, axis=2)
+        x = repeat_elements(x, height_factor, axis=3)
+        x = repeat_elements(x, width_factor, axis=4)
+    elif data_format == 'channels_last':
+        x = repeat_elements(x, depth_factor, axis=1)
+        x = repeat_elements(x, height_factor, axis=2)
+        x = repeat_elements(x, width_factor, axis=3)
+    return x
+
+
 square = np.square
 abs = np.abs
 exp = np.exp
 log = np.log
 round = np.round
 sign = np.sign
+expand_dims = np.expand_dims
+squeeze = np.squeeze
